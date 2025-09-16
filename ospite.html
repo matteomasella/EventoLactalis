@@ -109,7 +109,7 @@
       };
 
       try {
-        const res = await fetch("INSERISCI_URL_APPS_SCRIPT", {
+        const res = await fetch("https://script.google.com/macros/s/AKfycbyxWLNgq5KSjEWlBkC6yvXb2oAInIJ7DSjfvy8KTFKQDAaSxYg0TP8cOYetmE30qVqmAA/exec", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data)
