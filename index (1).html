@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Event Manager 1.0 — Accrediti & Guardaroba</title>
+  <style>
+    :root{
+      --bg:#f7f7f7;
+      --ink:#1a1a1a;
+      --accent:#004D54; /* Ottanio 2EMME */
+      --accent2:#DB4F61; /* Magenta */
+      --ok:#2b8a3e;
+      --warn:#b08900;
+      --muted:#888;
+      --card:#ffffff;
+      --border:#e5e5e5;
+      --pill:#eef7f8;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --round:12px;
+    }
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;}
+    header{
+      position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#fff 0%,#fff 75%,rgba(255,255,255,0.9));
+      border-bottom:1px solid var(--border);
+    }
+    .container{max-width:1200px;margin:0 auto;padding:16px;}
+    .brand{display:flex;align-items:center;gap:12px;}
+    .brand h1{font-size:20px;margin:0;}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+    .tab{padding:8px 12px;border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer;}
+    .tab.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+    .grid{display:grid;grid-template-columns:360px 1fr;gap:16px;margin-top:16px;}
+    @media (max-width:960px){.grid{grid-template-columns:1fr;}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--round);padding:16px;box-shadow:0 1px 0 rgba(0,0,0,0.02);}
+    h2{margin:0 0 10px 0;font-size:18px}
+    h3{margin:18px 0 8px;font-size:15px;color:#333}
+    label{display:block;font-size:13px;margin:8px 0 4px;}
+    input,select,textarea,button{font:inherit}
+    input[type="text"],input[type="email"],input[type="datetime-local"],textarea,select{
+      width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:#fff;
+    }
+    .row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+    .row > *{flex:1}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
+    .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+    .btn.success{background:var(--ok);border-color:var(--ok);color:#fff}
+    .btn.warn{background:var(--warn);border-color:var(--warn);color:#fff}
+    .btn.ghost{background:transparent}
+    .pill{display:inline-block;background:var(--pill);padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid #d7ecee}
+    table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    thead th{font-size:12px;text-transform:uppercase;color:#666;text-align:left}
+    tbody tr{background:#fff;border:1px solid var(--border)}
+    tbody td{padding:10px 8px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+    tbody tr:first-child td{border-top-left-radius:10px;border-top-right-radius:10px}
+    tbody tr:last-child td{border-bottom-left-radius:10px;border-bottom-right-radius:10px}
+    code{font-family:var(--mono);font-size:13px;background:#f3f6f7;border:1px solid #e1ecee;padding:2px 6px;border-radius:6px}
+    .mono{font-family:var(--mono)}
+    .muted{color:var(--muted)}
+    .split{display:flex;justify-content:space-between;gap:12px;align-items:center}
+    .kbd{font-family:var(--mono);font-size:12px;border:1px solid var(--border);border-bottom-width:3px;border-radius:6px;padding:2px 6px;background:#fff}
+    .list{display:flex;flex-wrap:wrap;gap:6px}
+    .sticky-footer{position:sticky;bottom:0;background:rgba(255,255,255,0.9);border-top:1px solid var(--border);padding:10px;margin-top:16px}
+    .inline{display:inline-flex;gap:8px;flex-wrap:wrap}
+    .tip{font-size:12px;color:#666;margin-top:4px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div class="split">
+        <div class="brand">
+          <div style="width:10px;height:22px;background:var(--accent);border-radius:2px"></div>
+          <h1>Accrediti & Guardaroba — Convention</h1>
+        </div>
+        <div class="inline">
+          <button class="btn" id="btnExportCSV">Esporta CSV</button>
+          <button class="btn" id="btnExportJSON">Esporta JSON</button>
+          <button class="btn" id="btnBackup">Backup (scarica)</button>
+          <button class="btn" id="btnRestore">Ripristina</button>
+          <input type="file" id="restoreFile" accept=".json" style="display:none">
+        </div>
+      </div>
+      <div class="tabs">
+        <div class="tab active" data-tab="import">Importa/Genera codici</div>
+        <div class="tab" data-tab="checkin">Check‑in rapido</div>
+        <div class="tab" data-tab="liste">Liste & Filtri</div>
+        <div class="tab" data-tab="hotels">Assegnazione Hotel</div>
+        <div class="tab" data-tab="impostazioni">Impostazioni</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="grid">
+      <!-- Left column: actions -->
+      <section class="card" id="leftPane">
+        <div data-pane="import">
+          <h2>Importa partecipanti</h2>
+          <p class="muted">Formato CSV accettato: <code>nome,cognome,email,telefono,haHotel(0/1),note</code></p>
+          <textarea id="csvInput" rows="8" placeholder="Incolla qui il CSV o usa il pulsante 'Carica CSV'..."></textarea>
+          <div class="row" style="margin-top:8px">
+            <input type="file" id="fileCSV" accept=".csv" />
+            <button class="btn" id="btnParseCSV">Carica & Pre‑analizza</button>
+          </div>
+          <h3>Distribuzione per lettera</h3>
+          <p class="muted">Indica soglie per creare sottosettori (A, B, C, D) quando una lettera supera un certo numero di partecipanti.</p>
+          <div class="row">
+            <div>
+              <label>Soglia per attivare sottosettori</label>
+              <input type="text" id="threshold" value="60" />
+            </div>
+            <div>
+              <label>Numero sottosettori (max 4)</label>
+              <select id="subgroups">
+                <option>1</option><option>2</option><option selected>3</option><option>4</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <button class="btn primary" id="btnGenerate">Genera codici</button>
+            <button class="btn" id="btnClear">Svuota elenco</button>
+          </div>
+          <p class="tip">I codici sono nel formato <code>Lettera-Sub-###</code>, es. <code>B-A-007</code>. Coat/Luggage: <code>...-C</code> e <code>...-L</code>.</p>
+        </div>
+
+        <div data-pane="checkin" style="display:none">
+          <h2>Check‑in rapido</h2>
+          <label>Inserisci codice:</label>
+          <input type="text" id="checkinCode" placeholder="es. B-A-007" />
+          <div class="row">
+            <button class="btn success" id="btnCheckin">Registra arrivo</button>
+            <button class="btn" id="btnUndoCheckin">Annulla ultimo</button>
+          </div>
+          <div id="checkinResult" class="tip" style="margin-top:8px"></div>
+          <h3>Ultimi arrivi</h3>
+          <ul id="recentArrivals" class="list"></ul>
+        </div>
+
+        <div data-pane="liste" style="display:none">
+          <h2>Ricerca & filtri</h2>
+          <div class="row">
+            <div>
+              <label>Cerca</label>
+              <input type="text" id="search" placeholder="Cognome, nome, codice, email..." />
+            </div>
+            <div>
+              <label>Stato</label>
+              <select id="filterStatus">
+                <option value="all">Tutti</option>
+                <option value="pending">In attesa</option>
+                <option value="arrived">Arrivati</option>
+              </select>
+            </div>
+            <div>
+              <label>Hotel</label>
+              <select id="filterHotel">
+                <option value="all">Tutti</option>
+                <option value="need">Richiedono hotel</option>
+                <option value="assigned">Hotel assegnato</option>
+                <option value="none">Nessun hotel</option>
+              </select>
+            </div>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn" id="btnCopyList">Copia elenco visibile</button>
+            <button class="btn" id="btnExportVisibleCSV">Esporta CSV (filtrato)</button>
+          </div>
+        </div>
+
+        <div data-pane="hotels" style="display:none">
+          <h2>Assegnazione Hotel</h2>
+          <div class="row">
+            <div>
+              <label>Hotel disponibili (uno per riga)</label>
+              <textarea id="hotelsList" rows="4" placeholder="Hotel Uno&#10;Hotel Due&#10;Hotel Tre"></textarea>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Cerca partecipante</label>
+              <input type="text" id="hotelSearch" placeholder="Cognome o codice..." />
+            </div>
+            <div>
+              <label>Seleziona hotel</label>
+              <select id="hotelSelect"></select>
+            </div>
+          </div>
+          <div class="row">
+            <button class="btn primary" id="btnAssignHotel">Assegna hotel</button>
+            <button class="btn" id="btnClearHotel">Rimuovi hotel</button>
+          </div>
+          <p class="tip">Suggerimento: filtra “Richiedono hotel” nella scheda <em>Liste & Filtri</em> per vedere solo chi ne ha bisogno.</p>
+        </div>
+
+        <div data-pane="impostazioni" style="display:none">
+          <h2>Integrazioni (facoltative)</h2>
+          <label>Webhook (Google Apps Script / Monday.com)</label>
+          <input type="text" id="webhookURL" placeholder="https://script.google.com/... oppure https://api.monday.com/... (via proxy)" />
+          <div class="row">
+            <button class="btn" id="btnTestWebhook">Invia test webhook</button>
+            <button class="btn warn" id="btnSyncArrivals">Invia lista Arrivi (webhook)</button>
+          </div>
+          <p class="tip">Per Google Sheets: crea uno script che riceve POST JSON e scrive le righe su un foglio (ti lascio più sotto un esempio).</p>
+          <h3>Esempio payload JSON</h3>
+          <pre id="payloadPreview" style="white-space:pre-wrap;background:#fafafa;border:1px solid var(--border);padding:8px;border-radius:8px;font-family:var(--mono)"></pre>
+        </div>
+      </section>
+
+      <!-- Right column: data tables -->
+      <section class="card">
+        <div class="split">
+          <h2>Partecipanti</h2>
+          <div class="inline">
+            <span class="pill">Totale: <span id="statTotal">0</span></span>
+            <span class="pill">In attesa: <span id="statPending">0</span></span>
+            <span class="pill">Arrivati: <span id="statArrived">0</span></span>
+            <span class="pill">Hotel assegnato: <span id="statHotel">0</span></span>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Codice</th>
+              <th>Nome</th>
+              <th>Cognome</th>
+              <th>Email</th>
+              <th>Telefono</th>
+              <th>Hotel</th>
+              <th>Stato</th>
+              <th>Arrivo</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="sticky-footer">
+          <div class="split">
+            <div class="muted">Suggerimento: <span class="kbd">/</span> mette il focus sulla ricerca • <span class="kbd">Invio</span> fa il check‑in</div>
+            <div class="inline">
+              <button class="btn" id="btnResetFilters">Reset filtri</button>
+              <button class="btn" id="btnClearAll">Pulisci tutto</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    // ————— Data Model —————
+    const DB_KEY = "event_manager_db_v1";
+    let db = {
+      participants: [], // {id, nome, cognome, email, telefono, needHotel, hotel, note, code, codeCoat, codeLuggage, subgroup, arrivedAt}
+      history: [],       // check‑in history
+      settings: {
+        threshold: 60,
+        subgroups: 3,
+        hotels: [],
+        webhookURL: ""
+      }
+    };
+
+    function save(){ localStorage.setItem(DB_KEY, JSON.stringify(db)); render(); }
+    function load(){
+      const raw = localStorage.getItem(DB_KEY);
+      if(raw){ try{ db = JSON.parse(raw);}catch(e){} }
+      render();
+    }
+
+    function uid(){ return Math.random().toString(36).slice(2,10); }
+
+    // ————— CSV parsing —————
+    function parseCSV(text){
+      const lines = text.trim().split(/\r?\n/);
+      const out = [];
+      for(const line of lines){
+        if(!line.trim()) continue;
+        const cells = line.split(",").map(s=>s.trim());
+        const [nome,cognome,email,telefono,haHotel,note] = cells;
+        if(!nome || !cognome) continue;
+        out.push({ nome, cognome, email: email||"", telefono: telefono||"", needHotel: (haHotel||"0").toString().trim() === "1", note: note||"" });
+      }
+      return out;
+    }
+
+    // ————— Code generation logic —————
+    function generateCodesFor(list){
+      // Group by initial letter of surname
+      const byLetter = {};
+      list.forEach(p => {
+        const L = (p.cognome||"").trim().charAt(0).toUpperCase() || "#";
+        if(!byLetter[L]) byLetter[L] = [];
+        byLetter[L].push(p);
+      });
+      const threshold = parseInt(db.settings.threshold,10)||60;
+      const nSubs = Math.min(4, Math.max(1, parseInt(db.settings.subgroups,10)||1));
+      const subLabels = ["A","B","C","D"].slice(0, nSubs);
+
+      for(const L of Object.keys(byLetter)){
+        const arr = byLetter[L];
+        // Sort by cognome then nome for determinism
+        arr.sort((a,b)=> (a.cognome||"").localeCompare(b.cognome||"") || (a.nome||"").localeCompare(b.nome||""));
+        let buckets = [arr]; // default single bucket
+        if(arr.length > threshold && nSubs>1){
+          // Split fairly evenly across nSubs buckets
+          buckets = Array.from({length:nSubs}, ()=>[]);
+          arr.forEach((p,idx)=> buckets[idx % nSubs].push(p));
+        }
+        // Assign codes within each bucket
+        buckets.forEach((bucket, bi)=>{
+          bucket.forEach((p, i)=>{
+            const seq = String(i+1).padStart(3,"0");
+            const subgroup = subLabels[bi] || "A";
+            p.subgroup = subgroup;
+            p.code = `${L}-${subgroup}-${seq}`;
+            p.codeCoat = `${p.code}-C`;
+            p.codeLuggage = `${p.code}-L`;
+          });
+        });
+      }
+    }
+
+    // ————— UI wiring —————
+    const tabs = document.querySelectorAll(".tab");
+    const panes = document.querySelectorAll("[data-pane]");
+    tabs.forEach(t=> t.addEventListener("click",()=>{
+      tabs.forEach(x=>x.classList.remove("active"));
+      t.classList.add("active");
+      panes.forEach(p=> p.style.display = (p.getAttribute("data-pane")===t.dataset.tab)?"block":"none");
+    }));
+
+    // Import
+    const csvInput = document.getElementById("csvInput");
+    const fileCSV = document.getElementById("fileCSV");
+    document.getElementById("btnParseCSV").addEventListener("click", ()=>{
+      let text = csvInput.value.trim();
+      if(!text && fileCSV.files[0]){
+        const reader = new FileReader();
+        reader.onload = ()=> { csvInput.value = reader.result; preAnalyze(); };
+        reader.readAsText(fileCSV.files[0]);
+      } else {
+        preAnalyze();
+      }
+    });
+
+    function preAnalyze(){
+      const rows = parseCSV(csvInput.value);
+      if(!rows.length){ alert("Nessun partecipante trovato nel CSV."); return; }
+      alert(`Righe valide trovate: ${rows.length}. Ora premi 'Genera codici' per importare.`);
+      window._pendingImport = rows;
+    }
+
+    document.getElementById("btnGenerate").addEventListener("click", ()=>{
+      const threshold = document.getElementById("threshold").value;
+      const subgroups = document.getElementById("subgroups").value;
+      db.settings.threshold = parseInt(threshold,10)||60;
+      db.settings.subgroups = parseInt(subgroups,10)||3;
+
+      const rows = window._pendingImport || parseCSV(csvInput.value);
+      if(!rows.length){ alert("Nessun dato da importare."); return; }
+      // attach ids and generate codes
+      rows.forEach(r=>{ r.id = uid(); r.arrivedAt = null; r.hotel=""; });
+      generateCodesFor(rows);
+      db.participants = rows; // replace (for semplicità)
+      save();
+      window._pendingImport = null;
+      alert("Partecipanti importati e codici generati.");
+    });
+
+    document.getElementById("btnClear").addEventListener("click", ()=>{
+      if(confirm("Sicuro di svuotare l'elenco partecipanti?")){ db.participants = []; db.history=[]; save(); }
+    });
+
+    // Check‑in
+    document.getElementById("btnCheckin").addEventListener("click", ()=>{
+      const code = document.getElementById("checkinCode").value.trim().toUpperCase();
+      const res = checkinByCode(code);
+      const el = document.getElementById("checkinResult");
+      if(res.ok){
+        el.textContent = `Arrivo registrato: ${res.person.cognome} ${res.person.nome} alle ${new Date(res.person.arrivedAt).toLocaleString()}`;
+        document.getElementById("checkinCode").value = "";
+        renderRecent();
+      } else {
+        el.textContent = res.msg;
+      }
+    });
+
+    function checkinByCode(code){
+      // Accept base code or coat/luggage suffix
+      const base = code.replace(/-([CL])$/,"");
+      const p = db.participants.find(x=> x.code === base || x.codeCoat === code || x.codeLuggage === code || x.code === code);
+      if(!p) return {ok:false, msg:"Codice non trovato."};
+      if(p.arrivedAt) return {ok:false, msg:"Già registrato in arrivo."};
+      p.arrivedAt = new Date().toISOString();
+      db.history.unshift({ts:p.arrivedAt, id:p.id, code: p.code});
+      save();
+      return {ok:true, person:p};
+    }
+
+    document.getElementById("btnUndoCheckin").addEventListener("click", ()=>{
+      const last = db.history.shift();
+      if(!last){ alert("Nessun arrivo da annullare."); return; }
+      const p = db.participants.find(x=>x.id===last.id);
+      if(p){ p.arrivedAt = null; }
+      save();
+    });
+
+    function renderRecent(){
+      const ul = document.getElementById("recentArrivals");
+      if(!ul) return;
+      ul.innerHTML = "";
+      db.history.slice(0,10).forEach(h=>{
+        const p = db.participants.find(x=>x.id===h.id);
+        const li = document.createElement("li");
+        li.className="pill";
+        li.textContent = `${p?.code || h.code} • ${p?.cognome||""} ${p?.nome||""}`;
+        ul.appendChild(li);
+      });
+    }
+
+    // Filters & list rendering
+    const q = document.getElementById("search");
+    const fStatus = document.getElementById("filterStatus");
+    const fHotel = document.getElementById("filterHotel");
+    if(q) q.addEventListener("input", render);
+    if(fStatus) fStatus.addEventListener("change", render);
+    if(fHotel) fHotel.addEventListener("change", render);
+
+    function currentFilter(p){
+      const term = (q?.value||"").toLowerCase();
+      const status = fStatus?.value||"all";
+      const hotelF = fHotel?.value||"all";
+      let ok = true;
+      if(term){
+        const hay = [p.nome,p.cognome,p.email,p.telefono,p.code,p.codeCoat,p.codeLuggage,p.hotel].join(" ").toLowerCase();
+        ok = hay.includes(term);
+      }
+      if(ok && status!=="all"){
+        if(status==="pending") ok = !p.arrivedAt;
+        if(status==="arrived") ok = !!p.arrivedAt;
+      }
+      if(ok && hotelF!=="all"){
+        if(hotelF==="need") ok = !!p.needHotel && !p.hotel;
+        if(hotelF==="assigned") ok = !!p.hotel;
+        if(hotelF==="none") ok = !p.needHotel;
+      }
+      return ok;
+    }
+
+    function render(){
+      // Stats
+      const total = db.participants.length;
+      const arrived = db.participants.filter(p=>p.arrivedAt).length;
+      const assigned = db.participants.filter(p=>p.hotel).length;
+      const pending = total - arrived;
+      document.getElementById("statTotal").textContent = total;
+      document.getElementById("statPending").textContent = pending;
+      document.getElementById("statArrived").textContent = arrived;
+      document.getElementById("statHotel").textContent = assigned;
+
+      // Settings fields
+      const th = document.getElementById("threshold"); if(th) th.value = db.settings.threshold;
+      const sg = document.getElementById("subgroups"); if(sg) sg.value = db.settings.subgroups;
+      const wl = document.getElementById("webhookURL"); if(wl) wl.value = db.settings.webhookURL;
+      const hotelsList = document.getElementById("hotelsList"); if(hotelsList) hotelsList.value = db.settings.hotels.join("\n");
+
+      // Table
+      const tbody = document.getElementById("rows");
+      if(!tbody) return;
+      tbody.innerHTML = "";
+      db.participants.filter(currentFilter).forEach(p=>{
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="mono">${p.code}<div class="muted" style="font-size:12px">${p.codeCoat} • ${p.codeLuggage}</div></td>
+          <td>${p.nome}</td>
+          <td>${p.cognome}</td>
+          <td>${p.email||""}</td>
+          <td>${p.telefono||""}</td>
+          <td>${p.hotel? `<span class="pill">${p.hotel}</span>` : (p.needHotel? '<span class="pill" style="background:#fff6db;border-color:#ffe08a">Richiede</span>':'')}</td>
+          <td>${p.arrivedAt? '<span class="pill" style="background:#e7f7ec;border-color:#c6ebd0">Arrivato</span>' : '<span class="pill">In attesa</span>'}</td>
+          <td>${p.arrivedAt? new Date(p.arrivedAt).toLocaleString() : '-'}</td>
+          <td>
+            <div class="inline">
+              ${p.arrivedAt? `<button class="btn" data-act="undo" data-id="${p.id}">Annulla</button>` : `<button class="btn success" data-act="checkin" data-code="${p.code}">Check‑in</button>`}
+              <button class="btn" data-act="copy" data-code="${p.code}">Copia codice</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      renderRecent();
+      renderPayloadPreview();
+    }
+
+    // table actions
+    document.getElementById("rows").addEventListener("click", (e)=>{
+      const btn = e.target.closest("button"); if(!btn) return;
+      const act = btn.getAttribute("data-act");
+      if(act==="checkin"){ checkinByCode(btn.dataset.code); }
+      if(act==="undo"){
+        const id = btn.getAttribute("data-id");
+        const p = db.participants.find(x=>x.id===id);
+        if(p){ p.arrivedAt = null; db.history = db.history.filter(h=>h.id!==id); save(); }
+      }
+      if(act==="copy"){ navigator.clipboard.writeText(btn.dataset.code); btn.textContent="Copiato"; setTimeout(()=>btn.textContent="Copia codice",1000); }
+    });
+
+    document.getElementById("btnResetFilters").addEventListener("click", ()=>{
+      if(q) q.value=""; if(fStatus) fStatus.value="all"; if(fHotel) fHotel.value="all"; render();
+    });
+
+    document.getElementById("btnClearAll").addEventListener("click", ()=>{
+      if(confirm("Cancella TUTTO (partecipanti, arrivi, impostazioni)?")){ localStorage.removeItem(DB_KEY); load(); }
+    });
+
+    // Export
+    function toCSV(rows){
+      const head = ["code","codeCoat","codeLuggage","nome","cognome","email","telefono","needHotel","hotel","status","arrivedAt","note"];
+      const lines = [head.join(",")];
+      rows.forEach(p=>{
+        const vals = [
+          p.code, p.codeCoat, p.codeLuggage,
+          p.nome, p.cognome, p.email||"", p.telefono||"",
+          p.needHotel?1:0, p.hotel||"",
+          p.arrivedAt?"arrived":"pending",
+          p.arrivedAt||"", p.note||""
+        ].map(v=> `"${(v??"").toString().replace(/"/g,'""')}"`);
+        lines.push(vals.join(","));
+      });
+      return lines.join("\n");
+    }
+
+    document.getElementById("btnExportCSV").addEventListener("click", ()=>{
+      const csv = toCSV(db.participants);
+      download("partecipanti.csv", csv, "text/csv");
+    });
+    document.getElementById("btnExportJSON").addEventListener("click", ()=>{
+      download("database.json", JSON.stringify(db,null,2), "application/json");
+    });
+    document.getElementById("btnExportVisibleCSV").addEventListener("click", ()=>{
+      const csv = toCSV(db.participants.filter(currentFilter));
+      download("elenco_filtrato.csv", csv, "text/csv");
+    });
+    document.getElementById("btnCopyList").addEventListener("click", ()=>{
+      const csv = toCSV(db.participants.filter(currentFilter));
+      navigator.clipboard.writeText(csv);
+      alert("Elenco copiato negli appunti.");
+    });
+
+    function download(filename, content, mime){
+      const blob = new Blob([content], {type:mime});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    document.getElementById("btnBackup").addEventListener("click", ()=>{
+      download("backup_event_manager.json", JSON.stringify(db), "application/json");
+    });
+    document.getElementById("btnRestore").addEventListener("click", ()=> document.getElementById("restoreFile").click());
+    document.getElementById("restoreFile").addEventListener("change", (e)=>{
+      const f = e.target.files[0]; if(!f) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{ try{ db = JSON.parse(reader.result); save(); }catch(err){ alert("File non valido."); } };
+      reader.readAsText(f);
+      e.target.value = "";
+    });
+
+    // Hotels
+    function syncHotelSelect(){
+      const sel = document.getElementById("hotelSelect");
+      if(!sel) return;
+      sel.innerHTML = "";
+      db.settings.hotels.forEach(h=>{
+        const o = document.createElement("option"); o.textContent=h; o.value=h; sel.appendChild(o);
+      });
+    }
+    document.getElementById("hotelsList").addEventListener("input", (e)=>{
+      db.settings.hotels = e.target.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+      save(); syncHotelSelect();
+    });
+    document.getElementById("btnAssignHotel").addEventListener("click", ()=>{
+      const term = document.getElementById("hotelSearch").value.trim().toLowerCase();
+      const sel = document.getElementById("hotelSelect").value;
+      if(!term || !sel){ alert("Inserisci cognome/codice e seleziona un hotel."); return; }
+      const p = db.participants.find(x=> (x.cognome+" "+x.nome+" "+x.code).toLowerCase().includes(term) );
+      if(!p){ alert("Partecipante non trovato."); return; }
+      p.hotel = sel; save();
+    });
+    document.getElementById("btnClearHotel").addEventListener("click", ()=>{
+      const term = document.getElementById("hotelSearch").value.trim().toLowerCase();
+      const p = db.participants.find(x=> (x.cognome+" "+x.nome+" "+x.code).toLowerCase().includes(term) );
+      if(!p){ alert("Partecipante non trovato."); return; }
+      p.hotel = ""; save();
+    });
+
+    // Webhook
+    document.getElementById("btnTestWebhook").addEventListener("click", ()=>{
+      postWebhook({type:"test", at:new Date().toISOString(), sample: db.participants.slice(0,3)});
+    });
+    document.getElementById("btnSyncArrivals").addEventListener("click", ()=>{
+      const arrived = db.participants.filter(p=>p.arrivedAt);
+      postWebhook({type:"arrivals", at:new Date().toISOString(), rows: arrived});
+    });
+    document.getElementById("webhookURL").addEventListener("change", (e)=>{
+      db.settings.webhookURL = e.target.value.trim(); save();
+    });
+
+    function postWebhook(payload){
+      const url = db.settings.webhookURL;
+      if(!url){ alert("Inserisci un Webhook URL valido nelle Impostazioni."); return; }
+      fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload)})
+        .then(r=> r.text())
+        .then(t=> alert("Webhook inviato. Risposta: "+t.slice(0,200)))
+        .catch(err=> alert("Errore webhook: "+err.message));
+    }
+
+    function renderPayloadPreview(){
+      const el = document.getElementById("payloadPreview"); if(!el) return;
+      const arrived = db.participants.filter(p=>p.arrivedAt).slice(0,5);
+      el.textContent = JSON.stringify({type:"arrivals", rows: arrived}, null, 2);
+    }
+
+    // Keyboard shortcuts
+    window.addEventListener("keydown", (e)=>{
+      if(e.key==="/"){ const s = document.getElementById("search"); if(s){ s.focus(); s.select(); e.preventDefault(); } }
+      if(e.key==="Enter" && document.activeElement?.id==="checkinCode"){ document.getElementById("btnCheckin").click(); }
+    });
+
+    // Init
+    load();
+    syncHotelSelect();
+  </script>
+
+  <!--
+  ——— APPENDICE: Esempio Google Apps Script per ricevere i webhook e scrivere su Google Sheets ———
+  function doPost(e){
+    const ss = SpreadsheetApp.openById('SPREADSHEET_ID');
+    const sheet = ss.getSheetByName('Arrivi') || ss.insertSheet('Arrivi');
+    const body = JSON.parse(e.postData.contents);
+    if(body.type==='arrivals'){
+      const rows = body.rows || [];
+      const values = rows.map(r=> [new Date(), r.code, r.nome, r.cognome, r.email, r.telefono, r.hotel, r.arrivedAt]);
+      if(values.length){
+        sheet.getRange(sheet.getLastRow()+1,1,values.length,values[0].length).setValues(values);
+      }
+    } else {
+      const log = ss.getSheetByName('Log') || ss.insertSheet('Log');
+      log.appendRow([new Date(), JSON.stringify(body)]);
+    }
+    return ContentService.createTextOutput('OK');
+  }
+  -->
+</body>
+</html>
