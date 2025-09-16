@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrazione Ospite - Convention 2025</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 500px;
+      margin: 40px auto;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+    h1 {
+      font-size: 20px;
+      text-align: center;
+      margin-bottom: 20px;
+      color: #004D54; /* Ottanio */
+    }
+    label {
+      display: block;
+      margin-top: 12px;
+      font-weight: bold;
+    }
+    input, select, textarea, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 6px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    button {
+      margin-top: 20px;
+      background: #004D54;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover {
+      background: #006a74;
+    }
+    .success {
+      padding: 12px;
+      margin-top: 20px;
+      background: #e6f9f0;
+      border: 1px solid #b3e6d2;
+      border-radius: 8px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Registrazione Ospite</h1>
+    <form id="registrationForm">
+      <label for="nome">Nome</label>
+      <input type="text" id="nome" name="nome" required>
+
+      <label for="cognome">Cognome</label>
+      <input type="text" id="cognome" name="cognome" required>
+
+      <label for="email">Email (facoltativa)</label>
+      <input type="email" id="email" name="email">
+
+      <label for="allergie">Allergie/Intolleranze</label>
+      <textarea id="allergie" name="allergie" rows="3"></textarea>
+
+      <label for="trasporti">Trasporti</label>
+      <select id="trasporti" name="trasporti">
+        <option value="">Nessuno</option>
+        <option value="Navetta">Navetta</option>
+        <option value="Auto">Auto dedicata</option>
+      </select>
+
+      <label for="hotel">Hotel (se richiesto)</label>
+      <input type="text" id="hotel" name="hotel">
+
+      <button type="submit">Conferma Registrazione</button>
+    </form>
+
+    <div id="successMessage" class="success">
+      ✅ Registrazione completata! Riceverai un'email di conferma con il tuo codice personale.
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("registrationForm").addEventListener("submit", async function(e) {
+      e.preventDefault();
+
+      const data = {
+        codice: "", // il codice verrà aggiunto lato server
+        nome: document.getElementById("nome").value,
+        cognome: document.getElementById("cognome").value,
+        email: document.getElementById("email").value,
+        allergie: document.getElementById("allergie").value,
+        trasporti: document.getElementById("trasporti").value,
+        hotel: document.getElementById("hotel").value
+      };
+
+      try {
+        const res = await fetch("INSERISCI_URL_APPS_SCRIPT", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.status === "ok") {
+          document.getElementById("registrationForm").style.display = "none";
+          document.getElementById("successMessage").style.display = "block";
+        } else {
+          alert("Errore durante la registrazione: " + result.message);
+        }
+      } catch (err) {
+        alert("Errore di connessione: " + err.message);
+      }
+    });
+  </script>
+</body>
+</html>
